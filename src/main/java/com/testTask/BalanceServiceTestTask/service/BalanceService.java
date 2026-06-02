@@ -4,6 +4,7 @@ import com.testTask.BalanceServiceTestTask.dto.*;
 import com.testTask.BalanceServiceTestTask.entity.BalanceEntity;
 import com.testTask.BalanceServiceTestTask.entity.ReservationEntity;
 import com.testTask.BalanceServiceTestTask.entity.TransactionEntity;
+import com.testTask.BalanceServiceTestTask.exception.NotFoundException;
 import com.testTask.BalanceServiceTestTask.repository.BalanceRepository;
 import com.testTask.BalanceServiceTestTask.repository.ReservationRepository;
 import com.testTask.BalanceServiceTestTask.repository.TransactionRepository;
@@ -42,7 +43,7 @@ public class BalanceService {
     public BalanceResponse getBalanceById(Long userId){
         Optional<BalanceEntity> entity = balanceRepository.findById(userId);
         if (entity.isEmpty()){
-            throw new RuntimeException("user not found");
+            throw new NotFoundException();
         }else{
             return new BalanceResponse(entity.get().getUserId(),entity.get().getBalance(),entity.get().getReservedBalance());
         }
@@ -51,7 +52,7 @@ public class BalanceService {
     public ReserveBalanceResponse reserve(Long userId, BigDecimal amount, Long serviceId, Long orderId){
         Optional<BalanceEntity> entity = balanceRepository.findById(userId);
         if (entity.isEmpty()){
-            throw new RuntimeException("user not found");
+            throw new NotFoundException();
         }else{
             if (entity.get().getBalance().compareTo(amount)>=0){
                     ReservationEntity reservationEntity = new ReservationEntity();
@@ -63,7 +64,7 @@ public class BalanceService {
                 try {
                     reservationRepository.save(reservationEntity);
                 } catch (DataIntegrityViolationException e) {
-                    throw new RuntimeException("Order already exists");
+                    throw new NotFoundException();
                 }
                     BigDecimal a = entity.get().getBalance();
                     entity.get().setBalance(a.subtract(amount));
@@ -74,7 +75,7 @@ public class BalanceService {
                     transaction.createTransactionReserve(userId, amount, serviceId, orderId);
                     return new ReserveBalanceResponse(userId,amount,serviceId,orderId);
             }else{
-                throw new RuntimeException("user not enough balance");
+                throw new NotFoundException();
             }
         }
     }
@@ -83,11 +84,11 @@ public class BalanceService {
        Optional<ReservationEntity> reservationEntity = reservationRepository.findByOrderId(orderId);
         if (reservationEntity.isEmpty()||
                 reservationEntity.get().getStatus()!=ReservationStatus.RESERVED){
-            throw new RuntimeException("orders not found");
+            throw new NotFoundException();
         }else{
             Optional<BalanceEntity> entity = balanceRepository.findById(reservationEntity.get().getUserId());
             if (entity.isEmpty()){
-                throw new RuntimeException("user not found");
+                throw new NotFoundException();
             }else{
                 entity.get().setReservedBalance(entity.get().getReservedBalance().subtract(reservationEntity.get().getAmount()));
                 reservationEntity.get().setStatus(ReservationStatus.CONFIRMED);
@@ -107,11 +108,11 @@ public class BalanceService {
         if (reservationEntity.isEmpty()||
                 reservationEntity.get().getStatus()==ReservationStatus.CONFIRMED||
                 reservationEntity.get().getStatus()==ReservationStatus.CANCELED){
-            throw new RuntimeException("orders not found");
+            throw new NotFoundException();
         }else{
             Optional<BalanceEntity> balanceEntity = balanceRepository.findById(reservationEntity.get().getUserId());
             if (balanceEntity.isEmpty()){
-                throw new RuntimeException("user not found");
+                throw new NotFoundException();
             }else{
                 BigDecimal a = balanceEntity.get().getBalance();
                 balanceEntity.get().setBalance(a.add(reservationEntity.get().getAmount()));
